@@ -18,7 +18,7 @@ interface Department {
   id: number;
   name: string;
   parent_id: number | null;
-  employee_count?: number;
+  employeeCount?: number;
   children?: Department[];
 }
 
@@ -91,39 +91,39 @@ export default function EmployeeList() {
       id: 1,
       name: '总经办',
       parent_id: null,
-      employee_count: 2,
+      employeeCount: 2,
       children: [],
     },
     {
       id: 2,
       name: '人力资源部',
       parent_id: null,
-      employee_count: 5,
+      employeeCount: 5,
       children: [],
     },
     {
       id: 3,
       name: '财务部',
       parent_id: null,
-      employee_count: 4,
+      employeeCount: 4,
       children: [],
     },
     {
       id: 4,
       name: '技术部',
       parent_id: null,
-      employee_count: 45,
+      employeeCount: 45,
       children: [
-        { id: 6, name: '前端组', parent_id: 4, employee_count: 15, children: [] },
-        { id: 7, name: '后端组', parent_id: 4, employee_count: 20, children: [] },
-        { id: 8, name: '测试组', parent_id: 4, employee_count: 10, children: [] },
+        { id: 6, name: '前端组', parent_id: 4, employeeCount: 15, children: [] },
+        { id: 7, name: '后端组', parent_id: 4, employeeCount: 20, children: [] },
+        { id: 8, name: '测试组', parent_id: 4, employeeCount: 10, children: [] },
       ],
     },
     {
       id: 5,
       name: '市场部',
       parent_id: null,
-      employee_count: 12,
+      employeeCount: 12,
       children: [],
     },
   ];
@@ -213,8 +213,8 @@ export default function EmployeeList() {
             )}
             <Building2 size={16} className="mr-2 text-gray-400" />
             <span className="text-sm flex-1 truncate">{dept.name}</span>
-            {dept.employee_count !== undefined && (
-              <span className="text-xs text-gray-400">{dept.employee_count}</span>
+            {dept.employeeCount !== undefined && (
+              <span className="text-xs text-gray-400">{dept.employeeCount}</span>
             )}
           </div>
           {hasChildren && isExpanded && (

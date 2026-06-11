@@ -11,7 +11,6 @@ function buildTree(departments: any[], parentId: number | null = null): any[] {
     .map((d) => ({
       ...d,
       children: buildTree(departments, d.id),
-      employeeCount: departments.filter((emp) => emp.department_id === d.id).length || 0,
     }));
 }
 
@@ -22,7 +21,7 @@ router.get('/tree', (req: Request, res: Response): void => {
       .all();
     
     const employees = db
-      .prepare('SELECT id, department_id FROM employees WHERE status = "active"')
+      .prepare('SELECT id, department_id FROM employees WHERE status = \'active\'')
       .all();
 
     const tree = buildTree([...departments], null);
@@ -45,6 +44,7 @@ router.get('/tree', (req: Request, res: Response): void => {
 
     res.json(success(result));
   } catch (error) {
+    console.error('获取部门树错误:', error);
     res.json(fail('获取部门树失败'));
   }
 });
@@ -118,7 +118,7 @@ router.delete('/:id', (req: Request, res: Response): void => {
     }
 
     const empCount = db
-      .prepare('SELECT COUNT(*) as count FROM employees WHERE department_id = ? AND status = "active"')
+      .prepare('SELECT COUNT(*) as count FROM employees WHERE department_id = ? AND status = \'active\'')
       .get(id) as { count: number };
     
     if (empCount.count > 0) {

@@ -197,7 +197,7 @@ router.post('/calculate', (req: Request, res: Response): void => {
     const startDate = dayjs(`${year}-${month}-01`).format('YYYY-MM-DD');
     const endDate = dayjs(`${year}-${month}-01`).endOf('month').format('YYYY-MM-DD');
 
-    let empSql = 'SELECT id FROM employees WHERE status = "active"';
+    let empSql = 'SELECT id FROM employees WHERE status = \'active\'';
     const empParams: any[] = [];
 
     if (departmentId) {
