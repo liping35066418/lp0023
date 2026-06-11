@@ -17,6 +17,7 @@ import PerformanceTemplate from "@/pages/performance/Template";
 import PerformanceReview from "@/pages/performance/Review";
 import PerformanceResult from "@/pages/performance/Result";
 import SalaryGrade from "@/pages/performance/Salary";
+import SalaryAdjustment from "@/pages/performance/Adjustment";
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/performance/review" element={<PerformanceReview />} />
           <Route path="/performance/result" element={<PerformanceResult />} />
           <Route path="/performance/salary" element={<SalaryGrade />} />
+          <Route path="/performance/adjustment" element={<SalaryAdjustment />} />
           <Route path="*" element={<div className="text-center text-xl py-20 text-gray-500">页面不存在</div>} />
         </Routes>
       </MainLayout>

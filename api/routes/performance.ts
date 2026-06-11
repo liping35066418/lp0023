@@ -734,4 +734,202 @@ router.get('/statistics', (req: Request, res: Response): void => {
   }
 });
 
+router.get('/salary-adjustments', (req: Request, res: Response): void => {
+  try {
+    const { departmentId, cycleName } = req.query;
+
+    let sql = `
+      SELECT 
+        r.id as review_id,
+        r.employee_id,
+        r.cycle_name,
+        r.total_score,
+        r.grade,
+        r.salary_grade_adjust,
+        r.completed_at,
+        e.name as employee_name,
+        e.employee_no,
+        e.salary_grade as current_grade,
+        d.id as department_id,
+        d.name as department_name,
+        sg_current.base_salary as current_base_salary
+      FROM performance_reviews r
+      LEFT JOIN employees e ON r.employee_id = e.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN salary_grades sg_current ON e.salary_grade = sg_current.grade
+      WHERE r.status = 'completed'
+        AND r.salary_grade_adjust IS NOT NULL
+        AND e.status = 'active'
+    `;
+    const params: any[] = [];
+
+    if (departmentId) {
+      sql += ' AND e.department_id = ?';
+      params.push(departmentId);
+    }
+
+    if (cycleName) {
+      sql += ' AND r.cycle_name = ?';
+      params.push(cycleName);
+    }
+
+    sql += ' ORDER BY r.completed_at DESC, e.department_id';
+
+    const reviews = db.prepare(sql).all(...params);
+
+    const salaryGrades = db.prepare('SELECT * FROM salary_grades WHERE status = 1 ORDER BY level').all() as any[];
+    const gradeMap = new Map(salaryGrades.map((g: any) => [g.grade, g]));
+    const gradeLevels = salaryGrades.map((g: any) => ({ grade: g.grade, level: g.level }));
+
+    const suggestions = reviews.map((r: any) => {
+      const currentLevel = gradeLevels.find((g: any) => g.grade === r.current_grade)?.level || 0;
+      const adjust = r.salary_grade_adjust || 'keep';
+      
+      let targetLevel = currentLevel;
+      if (adjust === 'up_2') targetLevel += 2;
+      else if (adjust === 'up_1') targetLevel += 1;
+      else if (adjust === 'down_1') targetLevel -= 1;
+      else if (adjust === 'down_2') targetLevel -= 2;
+
+      const minLevel = Math.min(...gradeLevels.map((g: any) => g.level));
+      const maxLevel = Math.max(...gradeLevels.map((g: any) => g.level));
+      targetLevel = Math.max(minLevel, Math.min(maxLevel, targetLevel));
+
+      const suggestedGrade = gradeLevels.find((g: any) => g.level === targetLevel)?.grade || r.current_grade;
+      const suggestedGradeInfo = gradeMap.get(suggestedGrade);
+      const currentGradeInfo = gradeMap.get(r.current_grade);
+
+      return {
+        ...r,
+        suggested_grade: suggestedGrade,
+        suggested_base_salary: suggestedGradeInfo?.base_salary || 0,
+        current_base_salary: currentGradeInfo?.base_salary || 0,
+        salary_diff: (suggestedGradeInfo?.base_salary || 0) - (currentGradeInfo?.base_salary || 0),
+        is_boundary: targetLevel === minLevel || targetLevel === maxLevel,
+        available_grades: gradeLevels.map((g: any) => ({
+          grade: g.grade,
+          level: g.level,
+          base_salary: gradeMap.get(g.grade)?.base_salary || 0,
+          disabled: g.level < minLevel || g.level > maxLevel,
+        })),
+      };
+    });
+
+    const cycles = db.prepare(`
+      SELECT DISTINCT cycle_name 
+      FROM performance_reviews 
+      WHERE status = 'completed'
+      ORDER BY cycle_name DESC
+    `).all();
+
+    res.json(success({
+      list: suggestions,
+      salary_grades: salaryGrades,
+      cycles,
+    }));
+  } catch (error) {
+    console.error('获取调薪建议失败:', error);
+    res.json(fail('获取调薪建议失败'));
+  }
+});
+
+router.post('/salary-adjustments/submit', (req: Request, res: Response): void => {
+  try {
+    const { adjustments, effective_date } = req.body;
+
+    if (!adjustments || !Array.isArray(adjustments) || adjustments.length === 0) {
+      res.json(fail('请选择要调薪的员工'));
+      return;
+    }
+
+    const salaryGrades = db.prepare('SELECT * FROM salary_grades WHERE status = 1 ORDER BY level').all() as any[];
+    const gradeMap = new Map(salaryGrades.map((g: any) => [g.grade, g]));
+    const minLevel = Math.min(...salaryGrades.map((g: any) => g.level));
+    const maxLevel = Math.max(...salaryGrades.map((g: any) => g.level));
+
+    const transaction = db.transaction(() => {
+      for (const adj of adjustments) {
+        const { employee_id, review_id, target_grade, current_grade } = adj;
+
+        const targetLevel = salaryGrades.find((g: any) => g.grade === target_grade)?.level;
+        if (targetLevel === undefined) continue;
+
+        const clampedLevel = Math.max(minLevel, Math.min(maxLevel, targetLevel));
+        const finalGrade = salaryGrades.find((g: any) => g.level === clampedLevel)?.grade;
+        if (!finalGrade) continue;
+
+        if (finalGrade === current_grade) continue;
+
+        const employee = db.prepare('SELECT * FROM employees WHERE id = ?').get(employee_id) as any;
+        if (!employee) continue;
+
+        const review = db.prepare('SELECT * FROM performance_reviews WHERE id = ?').get(review_id) as any;
+
+        const beforeData = JSON.stringify({
+          salary_grade: current_grade,
+          base_salary: gradeMap.get(current_grade)?.base_salary || 0,
+        });
+
+        const afterData = JSON.stringify({
+          salary_grade: finalGrade,
+          base_salary: gradeMap.get(finalGrade)?.base_salary || 0,
+        });
+
+        db.prepare(
+          'UPDATE employees SET salary_grade = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        ).run(finalGrade, employee_id);
+
+        const changeReason = `绩效考核调薪 - ${review?.cycle_name || ''}，考核等级：${review?.grade || ''}，依据考核ID：${review_id}`;
+
+        db.prepare(
+          `INSERT INTO employee_history 
+           (employee_id, type, before_data, after_data, change_reason, operator_id, created_at)
+           VALUES (?, 'salary_adjust', ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        ).run(
+          employee_id,
+          beforeData,
+          afterData,
+          changeReason,
+          1
+        );
+
+        db.prepare(
+          `INSERT INTO salary_adjustment_records 
+           (employee_id, review_id, current_grade, target_grade, effective_date, status, operator_id, created_at)
+           VALUES (?, ?, ?, ?, ?, 'approved', ?, CURRENT_TIMESTAMP)`
+        ).run(
+          employee_id,
+          review_id,
+          current_grade,
+          finalGrade,
+          effective_date || new Date().toISOString().split('T')[0],
+          1
+        );
+      }
+    });
+
+    transaction();
+
+    res.json(success(null, `成功调薪 ${adjustments.length} 人`));
+  } catch (error) {
+    console.error('调薪提交失败:', error);
+    res.json(fail('调薪提交失败'));
+  }
+});
+
+router.get('/cycles', (req: Request, res: Response): void => {
+  try {
+    const cycles = db.prepare(`
+      SELECT DISTINCT cycle_name 
+      FROM performance_reviews 
+      WHERE status = 'completed'
+      ORDER BY cycle_name DESC
+    `).all();
+
+    res.json(success(cycles));
+  } catch (error) {
+    res.json(fail('获取考核周期失败'));
+  }
+});
+
 export default router;

@@ -309,6 +309,21 @@ export function initDatabase() {
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     );
 
+    CREATE TABLE IF NOT EXISTS salary_adjustment_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      review_id INTEGER,
+      current_grade TEXT,
+      target_grade TEXT,
+      effective_date DATE,
+      status TEXT DEFAULT 'pending',
+      operator_id INTEGER,
+      approve_remark TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (employee_id) REFERENCES employees(id),
+      FOREIGN KEY (review_id) REFERENCES performance_reviews(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_emp_dept ON employees(department_id);
     CREATE INDEX IF NOT EXISTS idx_emp_status ON employees(status);
     CREATE INDEX IF NOT EXISTS idx_att_date ON attendance_records(punch_date);
@@ -317,6 +332,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_overtime_emp ON overtime(employee_id);
     CREATE INDEX IF NOT EXISTS idx_summary_ym ON attendance_summary(year, month);
     CREATE INDEX IF NOT EXISTS idx_dept_parent ON departments(parent_id);
+    CREATE INDEX IF NOT EXISTS idx_salary_adj_emp ON salary_adjustment_records(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_salary_adj_review ON salary_adjustment_records(review_id);
   `);
 
   const deptCount = db.prepare('SELECT COUNT(*) as count FROM departments').get() as { count: number };

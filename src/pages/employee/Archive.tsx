@@ -31,8 +31,32 @@ interface Employee {
   department_name: string;
   position: string;
   job_level: string;
+  salary_grade: string;
   entry_date: string;
+  regular_date?: string;
   status: string;
+  birth_date?: string;
+  id_card?: string;
+  address?: string;
+  education?: string;
+  major?: string;
+  graduate_school?: string;
+  emergency_contact?: string;
+  emergency_phone?: string;
+  bank_name?: string;
+  bank_account?: string;
+}
+
+interface EmployeeHistory {
+  id: number;
+  employee_id: number;
+  type: string;
+  type_name: string;
+  before_data?: any;
+  after_data?: any;
+  change_reason?: string;
+  operator_id?: number;
+  created_at: string;
 }
 
 export default function EmployeeArchive() {
@@ -45,7 +69,10 @@ export default function EmployeeArchive() {
   const [status, setStatus] = useState('');
   const [showDetail, setShowDetail] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [employeeDetail, setEmployeeDetail] = useState<Employee | null>(null);
+  const [employeeHistory, setEmployeeHistory] = useState<EmployeeHistory[]>([]);
   const [activeTab, setActiveTab] = useState('basic');
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -74,16 +101,16 @@ export default function EmployeeArchive() {
   };
 
   const getMockEmployees = (): Employee[] => [
-    { id: 1, employee_no: 'EMP001', name: '张三', gender: '男', phone: '13800138001', email: 'zhangsan@company.com', department_name: '总经办', position: '总经理', job_level: 'P8', entry_date: '2015-01-01', status: 'active' },
-    { id: 2, employee_no: 'EMP002', name: '李四', gender: '女', phone: '13800138002', email: 'lisi@company.com', department_name: '人力资源部', position: 'HR经理', job_level: 'P6', entry_date: '2016-03-15', status: 'active' },
-    { id: 3, employee_no: 'EMP003', name: '王五', gender: '男', phone: '13800138003', email: 'wangwu@company.com', department_name: '财务部', position: '财务主管', job_level: 'P6', entry_date: '2017-06-01', status: 'active' },
-    { id: 4, employee_no: 'EMP004', name: '赵六', gender: '男', phone: '13800138004', email: 'zhaoliu@company.com', department_name: '技术部', position: '技术总监', job_level: 'P7', entry_date: '2016-09-01', status: 'active' },
-    { id: 5, employee_no: 'EMP005', name: '钱七', gender: '女', phone: '13800138005', email: 'qianqi@company.com', department_name: '市场部', position: '市场经理', job_level: 'P5', entry_date: '2018-02-01', status: 'active' },
-    { id: 6, employee_no: 'EMP006', name: '孙八', gender: '男', phone: '13800138006', email: 'sunba@company.com', department_name: '前端组', position: '高级前端工程师', job_level: 'P5', entry_date: '2019-04-01', status: 'active' },
-    { id: 7, employee_no: 'EMP007', name: '周九', gender: '男', phone: '13800138007', email: 'zhoujiu@company.com', department_name: '后端组', position: '高级后端工程师', job_level: 'P5', entry_date: '2018-11-15', status: 'active' },
-    { id: 8, employee_no: 'EMP008', name: '吴十', gender: '女', phone: '13800138008', email: 'wushi@company.com', department_name: '测试组', position: '测试工程师', job_level: 'P4', entry_date: '2020-07-01', status: 'active' },
-    { id: 9, employee_no: 'EMP009', name: '郑十一', gender: '男', phone: '13800138009', email: 'zheng11@company.com', department_name: '前端组', position: '前端工程师', job_level: 'P4', entry_date: '2020-03-01', status: 'active' },
-    { id: 10, employee_no: 'EMP010', name: '冯十二', gender: '女', phone: '13800138010', email: 'feng12@company.com', department_name: '人力资源部', position: 'HR专员', job_level: 'P3', entry_date: '2021-01-15', status: 'active' },
+    { id: 1, employee_no: 'EMP001', name: '张三', gender: '男', phone: '13800138001', email: 'zhangsan@company.com', department_name: '总经办', position: '总经理', job_level: 'P8', salary_grade: 'S5', entry_date: '2015-01-01', status: 'active' },
+    { id: 2, employee_no: 'EMP002', name: '李四', gender: '女', phone: '13800138002', email: 'lisi@company.com', department_name: '人力资源部', position: 'HR经理', job_level: 'P6', salary_grade: 'S3', entry_date: '2016-03-15', status: 'active' },
+    { id: 3, employee_no: 'EMP003', name: '王五', gender: '男', phone: '13800138003', email: 'wangwu@company.com', department_name: '财务部', position: '财务主管', job_level: 'P6', salary_grade: 'S3', entry_date: '2017-06-01', status: 'active' },
+    { id: 4, employee_no: 'EMP004', name: '赵六', gender: '男', phone: '13800138004', email: 'zhaoliu@company.com', department_name: '技术部', position: '技术总监', job_level: 'P7', salary_grade: 'S4', entry_date: '2016-09-01', status: 'active' },
+    { id: 5, employee_no: 'EMP005', name: '钱七', gender: '女', phone: '13800138005', email: 'qianqi@company.com', department_name: '市场部', position: '市场经理', job_level: 'P5', salary_grade: 'S2', entry_date: '2018-02-01', status: 'active' },
+    { id: 6, employee_no: 'EMP006', name: '孙八', gender: '男', phone: '13800138006', email: 'sunba@company.com', department_name: '前端组', position: '高级前端工程师', job_level: 'P5', salary_grade: 'S2', entry_date: '2019-04-01', status: 'active' },
+    { id: 7, employee_no: 'EMP007', name: '周九', gender: '男', phone: '13800138007', email: 'zhoujiu@company.com', department_name: '后端组', position: '高级后端工程师', job_level: 'P5', salary_grade: 'S2', entry_date: '2018-11-15', status: 'active' },
+    { id: 8, employee_no: 'EMP008', name: '吴十', gender: '女', phone: '13800138008', email: 'wushi@company.com', department_name: '测试组', position: '测试工程师', job_level: 'P4', salary_grade: 'S1', entry_date: '2020-07-01', status: 'active' },
+    { id: 9, employee_no: 'EMP009', name: '郑十一', gender: '男', phone: '13800138009', email: 'zheng11@company.com', department_name: '前端组', position: '前端工程师', job_level: 'P4', salary_grade: 'S1', entry_date: '2020-03-01', status: 'active' },
+    { id: 10, employee_no: 'EMP010', name: '冯十二', gender: '女', phone: '13800138010', email: 'feng12@company.com', department_name: '人力资源部', position: 'HR专员', job_level: 'P3', salary_grade: 'S1', entry_date: '2021-01-15', status: 'active' },
   ];
 
   const getStatusLabel = (status: string) => {
@@ -95,9 +122,39 @@ export default function EmployeeArchive() {
     return map[status] || { label: status, color: 'bg-gray-100 text-gray-700' };
   };
 
-  const handleView = (emp: Employee) => {
+  const handleView = async (emp: Employee) => {
     setSelectedEmployee(emp);
     setShowDetail(true);
+    setLoadingDetail(true);
+    setActiveTab('basic');
+    
+    try {
+      const [detailRes, historyRes] = await Promise.all([
+        fetch(`/api/employees/${emp.id}`),
+        fetch(`/api/employees/${emp.id}/history`),
+      ]);
+      
+      const detailData = await detailRes.json();
+      const historyData = await historyRes.json();
+      
+      if (detailData.success) {
+        setEmployeeDetail(detailData.data);
+      } else {
+        setEmployeeDetail(emp);
+      }
+      
+      if (historyData.success) {
+        setEmployeeHistory(historyData.data || []);
+      } else {
+        setEmployeeHistory([]);
+      }
+    } catch (error) {
+      console.error('获取员工详情失败:', error);
+      setEmployeeDetail(emp);
+      setEmployeeHistory([]);
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const handleAdd = () => {
@@ -339,18 +396,25 @@ export default function EmployeeArchive() {
             </div>
 
             <div className="flex-1 overflow-auto p-6">
+              {loadingDetail ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-gray-500">加载中...</span>
+                </div>
+              ) : (
+                <>
               {activeTab === 'basic' && (
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-medium text-gray-800 mb-4">基本信息</h4>
                     <div className="space-y-3">
                       {[
-                        { label: '姓名', value: selectedEmployee.name },
-                        { label: '性别', value: selectedEmployee.gender },
-                        { label: '出生日期', value: '1990-01-15' },
-                        { label: '身份证号', value: '110101199001150000' },
-                        { label: '手机号', value: selectedEmployee.phone },
-                        { label: '邮箱', value: selectedEmployee.email },
+                        { label: '姓名', value: employeeDetail?.name || selectedEmployee.name },
+                        { label: '性别', value: employeeDetail?.gender || selectedEmployee.gender },
+                        { label: '出生日期', value: employeeDetail?.birth_date || '-' },
+                        { label: '身份证号', value: employeeDetail?.id_card || '-' },
+                        { label: '手机号', value: employeeDetail?.phone || selectedEmployee.phone },
+                        { label: '邮箱', value: employeeDetail?.email || selectedEmployee.email },
                       ].map((item, idx) => (
                         <div key={idx} className="flex">
                           <span className="w-24 text-sm text-gray-500">{item.label}</span>
@@ -363,11 +427,11 @@ export default function EmployeeArchive() {
                     <h4 className="font-medium text-gray-800 mb-4">联系信息</h4>
                     <div className="space-y-3">
                       {[
-                        { label: '现居地址', value: '北京市朝阳区建国路88号' },
-                        { label: '紧急联系人', value: '李四' },
-                        { label: '紧急联系电话', value: '13900139000' },
-                        { label: '开户行', value: '中国工商银行' },
-                        { label: '银行账号', value: '6222020001000100001' },
+                        { label: '现居地址', value: employeeDetail?.address || '-' },
+                        { label: '紧急联系人', value: employeeDetail?.emergency_contact || '-' },
+                        { label: '紧急联系电话', value: employeeDetail?.emergency_phone || '-' },
+                        { label: '开户行', value: employeeDetail?.bank_name || '-' },
+                        { label: '银行账号', value: employeeDetail?.bank_account || '-' },
                       ].map((item, idx) => (
                         <div key={idx} className="flex">
                           <span className="w-24 text-sm text-gray-500">{item.label}</span>
@@ -385,12 +449,12 @@ export default function EmployeeArchive() {
                     <h4 className="font-medium text-gray-800 mb-4">工作信息</h4>
                     <div className="space-y-3">
                       {[
-                        { label: '所属部门', value: selectedEmployee.department_name },
-                        { label: '职位', value: selectedEmployee.position },
-                        { label: '职级', value: selectedEmployee.job_level },
-                        { label: '薪酬档位', value: 'S3' },
-                        { label: '入职日期', value: selectedEmployee.entry_date },
-                        { label: '转正日期', value: '2016-06-15' },
+                        { label: '所属部门', value: employeeDetail?.department_name || selectedEmployee.department_name },
+                        { label: '职位', value: employeeDetail?.position || selectedEmployee.position },
+                        { label: '职级', value: employeeDetail?.job_level || selectedEmployee.job_level },
+                        { label: '薪酬档位', value: employeeDetail?.salary_grade || selectedEmployee.salary_grade || '-' },
+                        { label: '入职日期', value: employeeDetail?.entry_date || selectedEmployee.entry_date },
+                        { label: '转正日期', value: employeeDetail?.regular_date || '-' },
                         { label: '用工类型', value: '全职' },
                       ].map((item, idx) => (
                         <div key={idx} className="flex">
@@ -404,10 +468,10 @@ export default function EmployeeArchive() {
                     <h4 className="font-medium text-gray-800 mb-4">教育背景</h4>
                     <div className="space-y-3">
                       {[
-                        { label: '最高学历', value: '本科' },
-                        { label: '毕业院校', value: '清华大学' },
-                        { label: '专业', value: '计算机科学' },
-                        { label: '毕业时间', value: '2015-06-30' },
+                        { label: '最高学历', value: employeeDetail?.education || '-' },
+                        { label: '毕业院校', value: employeeDetail?.graduate_school || '-' },
+                        { label: '专业', value: employeeDetail?.major || '-' },
+                        { label: '毕业时间', value: '-' },
                       ].map((item, idx) => (
                         <div key={idx} className="flex">
                           <span className="w-24 text-sm text-gray-500">{item.label}</span>
@@ -426,20 +490,60 @@ export default function EmployeeArchive() {
                     履历档案
                   </h4>
                   <div className="space-y-4">
-                    {[
-                      { type: '入职', date: '2015-01-01', desc: '加入公司，担任总经理', operator: '系统' },
-                      { type: '调岗', date: '2017-03-15', desc: '从技术部调至总经办', operator: 'HR经理' },
-                      { type: '信息更新', date: '2020-05-20', desc: '更新联系电话、地址信息', operator: '员工本人' },
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex p-4 bg-gray-50 rounded-lg">
-                        <div className="w-24 text-sm font-medium text-gray-700">{item.type}</div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-800">{item.desc}</p>
-                          <p className="text-xs text-gray-500 mt-1">操作人：{item.operator}</p>
+                    {employeeHistory.length > 0 ? (
+                      employeeHistory.map((item) => (
+                        <div key={item.id} className="flex p-4 bg-gray-50 rounded-lg">
+                          <div className="w-24 text-sm font-medium text-gray-700">{item.type_name}</div>
+                          <div className="flex-1">
+                            {item.type === 'salary_adjust' ? (
+                              <div>
+                                <p className="text-sm text-gray-800 font-medium">薪酬调整</p>
+                                {item.before_data && item.after_data && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    从 <span className="font-medium text-orange-600">{item.before_data.salary_grade}</span> 
+                                    （¥{item.before_data.base_salary?.toLocaleString()}）
+                                    调整至 <span className="font-medium text-green-600">{item.after_data.salary_grade}</span>
+                                    （¥{item.after_data.base_salary?.toLocaleString()}）
+                                  </p>
+                                )}
+                                {item.change_reason && (
+                                  <p className="text-xs text-gray-500 mt-2">{item.change_reason}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div>
+                                <p className="text-sm text-gray-800">{item.change_reason || item.type_name}</p>
+                                {item.before_data && item.after_data && (
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    {Object.keys(item.after_data).map((key) => {
+                                      const before = item.before_data[key];
+                                      const after = item.after_data[key];
+                                      if (before !== after) {
+                                        return (
+                                          <span key={key} className="mr-3">
+                                            {key}: {before} → {after}
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">操作人：管理员</p>
+                          </div>
+                          <div className="text-sm text-gray-500 whitespace-nowrap">
+                            {new Date(item.created_at).toLocaleDateString('zh-CN')}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500">{item.date}</div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <FileText size={40} className="mx-auto mb-2 text-gray-300" />
+                        <p>暂无履历记录</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
@@ -471,6 +575,8 @@ export default function EmployeeArchive() {
                     ))}
                   </div>
                 </div>
+              )}
+                </>
               )}
             </div>
 

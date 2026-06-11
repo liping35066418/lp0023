@@ -282,6 +282,7 @@ router.get('/:id/history', (req: Request, res: Response): void => {
             WHEN 'transfer' THEN '调岗'
             WHEN 'resign' THEN '离职'
             WHEN 'update' THEN '信息更新'
+            WHEN 'salary_adjust' THEN '调薪'
             ELSE h.type 
           END as type_name
         FROM employee_history h 

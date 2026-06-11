@@ -9,7 +9,8 @@ import {
   Home,
   FileText,
   Calendar,
-  Settings
+  Settings,
+  DollarSign
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -71,6 +72,7 @@ const menuItems: MenuItem[] = [
       { key: 'review', label: '考核管理', icon: <BarChart3 size={16} />, path: '/performance/review' },
       { key: 'result', label: '考核结果', icon: <BarChart3 size={16} />, path: '/performance/result' },
       { key: 'salary', label: '薪酬档位', icon: <Settings size={16} />, path: '/performance/salary' },
+      { key: 'adjustment', label: '调薪管理', icon: <DollarSign size={16} />, path: '/performance/adjustment' },
     ],
   },
 ];
@@ -192,6 +194,7 @@ function getCurrentPageTitle(path: string): string {
     '/performance/review': '考核管理',
     '/performance/result': '考核结果',
     '/performance/salary': '薪酬档位',
+    '/performance/adjustment': '调薪管理',
   };
   return pageMap[path] || '人事管理系统';
 }
