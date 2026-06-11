@@ -30,18 +30,68 @@ interface AttendanceSummary {
   status: string;
 }
 
+interface Department {
+  id: number;
+  name: string;
+  children?: Department[];
+}
+
+function flattenDepartments(depts: Department[]): { id: number; name: string }[] {
+  const result: { id: number; name: string }[] = [];
+  for (const d of depts) {
+    result.push({ id: d.id, name: d.name });
+    if (d.children && d.children.length > 0) {
+      result.push(...flattenDepartments(d.children));
+    }
+  }
+  return result;
+}
+
 export default function AttendanceSummary() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [departmentId, setDepartmentId] = useState('');
   const [keyword, setKeyword] = useState('');
   const [summaries, setSummaries] = useState<AttendanceSummary[]>([]);
+  const [filteredSummaries, setFilteredSummaries] = useState<AttendanceSummary[]>([]);
+  const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
     fetchSummaries();
-  }, [year, month, departmentId, keyword]);
+  }, [year, month, departmentId]);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch('/api/departments/tree');
+      const data = await res.json();
+      if (data.success) {
+        setDepartments(flattenDepartments(data.data));
+      }
+    } catch (error) {
+      console.error('获取部门列表失败:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (keyword.trim()) {
+      const kw = keyword.trim().toLowerCase();
+      setFilteredSummaries(
+        summaries.filter(
+          (s) =>
+            s.employee_name.toLowerCase().includes(kw) ||
+            s.employee_no.toLowerCase().includes(kw)
+        )
+      );
+    } else {
+      setFilteredSummaries(summaries);
+    }
+  }, [keyword, summaries]);
 
   const fetchSummaries = async () => {
     setLoading(true);
@@ -56,10 +106,22 @@ export default function AttendanceSummary() {
       const data = await res.json();
       if (data.success) {
         setSummaries(data.data);
+        setFilteredSummaries(keyword.trim() ? [] : data.data);
+        if (keyword.trim()) {
+          const kw = keyword.trim().toLowerCase();
+          setFilteredSummaries(
+            data.data.filter(
+              (s: AttendanceSummary) =>
+                s.employee_name.toLowerCase().includes(kw) ||
+                s.employee_no.toLowerCase().includes(kw)
+            )
+          );
+        }
       }
     } catch (error) {
       console.error('获取考勤汇总失败:', error);
       setSummaries(getMockData());
+      setFilteredSummaries(getMockData());
     } finally {
       setLoading(false);
     }
@@ -87,7 +149,7 @@ export default function AttendanceSummary() {
       const data = await res.json();
       if (data.success) {
         alert('考勤核算完成');
-        fetchSummaries();
+        await fetchSummaries();
       } else {
         alert(data.error || '核算失败');
       }
@@ -96,6 +158,15 @@ export default function AttendanceSummary() {
     } finally {
       setCalculating(false);
     }
+  };
+
+  const totals = {
+    workDays: filteredSummaries.reduce((sum, s) => sum + s.work_days, 0),
+    actualWorkDays: Number(filteredSummaries.reduce((sum, s) => sum + s.actual_work_days, 0).toFixed(2)),
+    lateCount: filteredSummaries.reduce((sum, s) => sum + s.late_count, 0),
+    earlyLeaveCount: filteredSummaries.reduce((sum, s) => sum + s.early_leave_count, 0),
+    absentCount: filteredSummaries.reduce((sum, s) => sum + s.absent_count, 0),
+    overtimeHours: Number(filteredSummaries.reduce((sum, s) => sum + s.overtime_hours, 0).toFixed(2)),
   };
 
   const getStatusBadge = (item: AttendanceSummary) => {
@@ -146,11 +217,9 @@ export default function AttendanceSummary() {
                 className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">全部部门</option>
-                <option value="1">总经办</option>
-                <option value="2">人力资源部</option>
-                <option value="3">财务部</option>
-                <option value="4">技术部</option>
-                <option value="5">市场部</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
               </select>
             </div>
 
@@ -185,19 +254,30 @@ export default function AttendanceSummary() {
 
       <div className="p-4 border-b border-gray-100 bg-gray-50">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {[
-            { label: '应出勤天数', value: '21天', color: 'text-gray-700' },
-            { label: '实际出勤', value: '19.5天', color: 'text-blue-600' },
-            { label: '迟到次数', value: '8次', color: 'text-yellow-600' },
-            { label: '早退次数', value: '3次', color: 'text-orange-600' },
-            { label: '旷工天数', value: '1天', color: 'text-red-600' },
-            { label: '加班时长', value: '74小时', color: 'text-purple-600' },
-          ].map((item, idx) => (
-            <div key={idx} className="text-center">
-              <p className={`text-lg font-semibold ${item.color}`}>{item.value}</p>
-              <p className="text-xs text-gray-500">{item.label}</p>
-            </div>
-          ))}
+          <div className="text-center">
+            <p className="text-lg font-semibold text-gray-700">{totals.workDays}天</p>
+            <p className="text-xs text-gray-500">应出勤天数</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-blue-600">{totals.actualWorkDays}天</p>
+            <p className="text-xs text-gray-500">实际出勤</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-yellow-600">{totals.lateCount}次</p>
+            <p className="text-xs text-gray-500">迟到次数</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-orange-600">{totals.earlyLeaveCount}次</p>
+            <p className="text-xs text-gray-500">早退次数</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-red-600">{totals.absentCount}天</p>
+            <p className="text-xs text-gray-500">旷工天数</p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-purple-600">{totals.overtimeHours}小时</p>
+            <p className="text-xs text-gray-500">加班时长</p>
+          </div>
         </div>
       </div>
 
@@ -223,8 +303,12 @@ export default function AttendanceSummary() {
               <tr>
                 <td colSpan={11} className="px-4 py-8 text-center text-gray-500">加载中...</td>
               </tr>
+            ) : filteredSummaries.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="px-4 py-8 text-center text-gray-500">暂无数据</td>
+              </tr>
             ) : (
-              summaries.map((item) => (
+              filteredSummaries.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center">
